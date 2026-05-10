@@ -135,6 +135,15 @@
   // MESSAGES
   // ═══════════════════════════════════════════════════════════
 
+  // Local product images pool
+  const BAG_IMAGES = ['/demo/Bag1.jpeg','/demo/bag2.jpeg','/demo/bag3.jpeg','/demo/bag4.jpeg','/demo/bag5.jpeg','/demo/bag6.jpeg','/demo/bag7.jpeg'];
+  let bagImgIndex = 0;
+  function getNextBagImage() {
+    const img = BAG_IMAGES[bagImgIndex % BAG_IMAGES.length];
+    bagImgIndex++;
+    return img;
+  }
+
   function appendMessage(role, text, imgSrc = null, doScroll = true) {
     const msg = document.createElement('div');
     msg.classList.add('chat-msg', role);
@@ -146,243 +155,229 @@
       msg.appendChild(img);
     }
     
-    if (text) {
-      // Check if bot response contains product data
-      const products = (role === 'bot') ? parseProductsFromText(text) : [];
-      const orders = (role === 'bot') ? parseOrdersFromText(text) : [];
+    if (text && role === 'bot') {
+      // Detect product URLs and order IDs in the agent's conversational text
+      const productUrls = extractProductUrls(text);
+      const orderIds = extractOrderIds(text);
+      const prices = extractPrices(text);
+      const hasProducts = productUrls.length > 0;
+      const hasOrders = orderIds.length > 0;
       
-      if (products.length > 0) {
-        // Show a clean text summary without the raw data
-        const cleanText = getCleanBotText(text);
-        if (cleanText) {
-          const textSpan = document.createElement('div');
-          textSpan.innerHTML = escapeHtml(cleanText).replace(/\n/g, '<br>');
-          msg.appendChild(textSpan);
-        }
-        messagesEl.appendChild(msg);
-        // Render product cards below the message
-        renderProductCards(products);
-      } else if (orders.length > 0) {
-        const cleanText = getCleanBotText(text);
-        if (cleanText) {
-          const textSpan = document.createElement('div');
-          textSpan.innerHTML = escapeHtml(cleanText).replace(/\n/g, '<br>');
-          msg.appendChild(textSpan);
-        }
-        messagesEl.appendChild(msg);
-        // Render order cards
-        renderOrderCards(orders);
-      } else {
-        const textSpan = document.createElement('div');
-        textSpan.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
-        msg.appendChild(textSpan);
-        messagesEl.appendChild(msg);
+      // Clean the text: remove URLs, format nicely
+      let displayText = cleanBotResponse(text);
+      const textSpan = document.createElement('div');
+      textSpan.innerHTML = formatBotHtml(displayText);
+      msg.appendChild(textSpan);
+      messagesEl.appendChild(msg);
+      
+      // Render interactive tiles BELOW the message bubble
+      if (hasProducts) {
+        renderProductTiles(productUrls, prices);
       }
+      if (hasOrders) {
+        renderOrderTiles(orderIds, text);
+      }
+    } else if (text) {
+      const textSpan = document.createElement('div');
+      textSpan.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+      msg.appendChild(textSpan);
+      messagesEl.appendChild(msg);
     } else {
       messagesEl.appendChild(msg);
     }
 
-    // Add decorative icons to bot messages
+    // Decorative icons on bot messages
     if (role === 'bot') {
-      const lastBotMsg = messagesEl.querySelector('.chat-msg.bot:last-of-type');
-      if (lastBotMsg && !lastBotMsg.querySelector('.chat-msg-icon, .chat-msg-icon-left')) {
-        const isStarfish = Math.random() > 0.5;
+      const lastBot = messagesEl.querySelector('.chat-msg.bot:last-of-type');
+      if (lastBot && !lastBot.querySelector('.chat-msg-icon, .chat-msg-icon-left')) {
         const icon = document.createElement('div');
+        const isStarfish = Math.random() > 0.5;
         icon.classList.add(isStarfish ? 'chat-msg-icon' : 'chat-msg-icon-left');
         icon.textContent = isStarfish ? '🌺' : '🐚';
-        lastBotMsg.appendChild(icon);
+        lastBot.appendChild(icon);
       }
     }
     
     if (doScroll) scrollToBottom();
   }
 
-  // ───── Parse product data from bot text ─────
-  function parseProductsFromText(text) {
-    const products = [];
-    // Match product blocks: "Product: Name - Variant\nSKU/ID: ...\nPrice: $XX\nURL: ...\nStock Status: ..."
-    const blocks = text.split('---').filter(b => b.trim());
-    blocks.forEach(block => {
-      const nameMatch = block.match(/Product:\s*(.+?)(?:\n|$)/);
-      const priceMatch = block.match(/Price:\s*\$?([\d.]+)/);
-      const urlMatch = block.match(/URL:\s*(https?:\/\/[^\s\n]+)/);
-      const stockMatch = block.match(/Stock(?:\s*Status)?:\s*(.+?)(?:\n|$)/);
-      const skuMatch = block.match(/SKU(?:\/ID)?:\s*(.+?)(?:\n|$)/);
-      
-      if (nameMatch && urlMatch) {
-        products.push({
-          name: nameMatch[1].trim(),
-          price: priceMatch ? priceMatch[1] : null,
-          url: urlMatch[1].trim(),
-          stock: stockMatch ? stockMatch[1].trim() : null,
-          sku: skuMatch ? skuMatch[1].trim() : null,
-          slug: urlMatch[1].trim().replace('https://boggbag.com/products/', '')
-        });
-      }
-    });
-    return products;
+  // ═══════════════════════════════════════════════════════════
+  // SMART EXTRACTORS — work on the agent's conversational text
+  // ═══════════════════════════════════════════════════════════
+
+  function extractProductUrls(text) {
+    const urls = [];
+    // Match boggbag.com product URLs anywhere in text
+    const urlRegex = /https?:\/\/boggbag\.com\/products\/([a-z0-9\-]+)/gi;
+    let m;
+    while ((m = urlRegex.exec(text)) !== null) {
+      urls.push({ fullUrl: m[0], slug: m[1] });
+    }
+    // Deduplicate by slug
+    const seen = new Set();
+    return urls.filter(u => { if (seen.has(u.slug)) return false; seen.add(u.slug); return true; });
   }
 
-  // ───── Parse order data from bot text ─────
-  function parseOrdersFromText(text) {
-    const orders = [];
-    const blocks = text.split('---').filter(b => b.trim());
-    blocks.forEach(block => {
-      const orderIdMatch = block.match(/Order\s*ID:\s*(.+?)(?:\n|$)/);
-      const customerMatch = block.match(/Customer:\s*(.+?)(?:\n|$)/);
-      const itemMatch = block.match(/Item:\s*(.+?)(?:\n|$)/);
-      const statusMatch = block.match(/Status:\s*(.+?)(?:\n|$)/);
-      const trackingMatch = block.match(/Tracking:\s*(.+?)(?:\n|$)/);
-      const linkMatch = block.match(/Link:\s*(https?:\/\/[^\s\n]+)/);
-      const amountMatch = block.match(/Amount:\s*\$?([\d.]+)/);
-      
-      if (orderIdMatch && statusMatch) {
-        orders.push({
-          orderId: orderIdMatch[1].trim(),
-          customer: customerMatch ? customerMatch[1].trim() : '',
-          item: itemMatch ? itemMatch[1].trim() : '',
-          status: statusMatch[1].trim(),
-          tracking: trackingMatch ? trackingMatch[1].trim() : '',
-          trackingLink: linkMatch ? linkMatch[1].trim() : '',
-          amount: amountMatch ? amountMatch[1] : null
-        });
-      }
-    });
-    return orders;
+  function extractOrderIds(text) {
+    const ids = [];
+    const idRegex = /BOGG[\s\-]*\d{4}/gi;
+    let m;
+    while ((m = idRegex.exec(text)) !== null) {
+      const normalized = m[0].replace(/\s+/g, '-').toUpperCase();
+      if (!ids.includes(normalized)) ids.push(normalized);
+    }
+    return ids;
   }
 
-  // ───── Clean bot text (remove raw data blocks) ─────
-  function getCleanBotText(text) {
-    // Remove the raw structured data, keep only the conversational part
-    // Remove lines that look like "Product: ...", "SKU: ...", etc.
-    const lines = text.split('\n');
-    const cleanLines = lines.filter(l => {
-      const t = l.trim();
-      if (!t) return false;
-      if (/^(Product|SKU|Price|URL|Stock|Tracking|Link|Order\s*ID|Customer|Email|Item|Qty|Date|Amount|---)/i.test(t)) return false;
-      if (/^\[API RESPONSE/i.test(t)) return false;
-      if (/^Found \d+ (product|order|matching)/i.test(t)) return true;
-      return true;
-    });
-    return cleanLines.join('\n').trim();
+  function extractPrices(text) {
+    const prices = [];
+    const priceRegex = /\$(\d+(?:\.\d{2})?)/g;
+    let m;
+    while ((m = priceRegex.exec(text)) !== null) {
+      prices.push(m[1]);
+    }
+    return prices;
   }
 
-  // ───── Render Product Cards ─────
-  function renderProductCards(products) {
+  // ═══════════════════════════════════════════════════════════
+  // TEXT CLEANING — format bot text for display
+  // ═══════════════════════════════════════════════════════════
+
+  function cleanBotResponse(text) {
+    // Remove asterisks (markdown bold/italic)
+    let clean = text.replace(/\*+/g, '');
+    // Remove raw URLs (they'll be in the cards)
+    clean = clean.replace(/https?:\/\/boggbag\.com\/products\/[a-z0-9\-]+/gi, '');
+    clean = clean.replace(/https?:\/\/track\.boggbag\.com\/[A-Z0-9]+/gi, '');
+    // Remove [API RESPONSE: ...] tags
+    clean = clean.replace(/\[API RESPONSE[^\]]*\]/gi, '');
+    // Clean up leftover artifacts
+    clean = clean.replace(/\(\s*\)/g, ''); // empty parens
+    clean = clean.replace(/:\s*\n/g, ':\n');
+    clean = clean.replace(/\n{3,}/g, '\n\n');
+    return clean.trim();
+  }
+
+  function formatBotHtml(text) {
+    let html = escapeHtml(text);
+    // Convert newlines to <br>
+    html = html.replace(/\n/g, '<br>');
+    // Bold text between colons pattern (e.g., "Status: Shipped")
+    return html;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INTERACTIVE PRODUCT TILES
+  // ═══════════════════════════════════════════════════════════
+
+  function renderProductTiles(productUrls, prices) {
     const wrapper = document.createElement('div');
-    wrapper.classList.add('product-cards-wrapper');
+    wrapper.classList.add('product-tiles-wrapper');
 
-    products.forEach((product, index) => {
-      const card = document.createElement('a');
-      card.href = product.url;
-      card.target = '_blank';
-      card.rel = 'noopener';
-      card.classList.add('chat-product-card-v2');
-      card.style.animationDelay = `${index * 0.12}s`;
+    productUrls.forEach((product, index) => {
+      const tile = document.createElement('a');
+      tile.href = product.fullUrl;
+      tile.target = '_blank';
+      tile.rel = 'noopener';
+      tile.classList.add('product-tile');
+      tile.style.animationDelay = `${index * 0.1}s`;
 
-      // Stock badge
-      const isInStock = product.stock && (product.stock.includes('IN STOCK') || product.stock.includes('✅'));
-      const isLow = product.stock && product.stock.includes('LOW');
-      const isOut = product.stock && (product.stock.includes('OUT') || product.stock.includes('❌'));
-      const stockClass = isOut ? 'out' : isLow ? 'low' : 'in';
-      const stockLabel = isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock';
+      // Pretty name from slug
+      const prettyName = product.slug
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
 
-      card.innerHTML = `
-        <div class="pcv2-img-wrap">
-          <div class="pcv2-img-placeholder">
-            <div class="pcv2-spinner"></div>
+      const price = prices[index] || null;
+      const imgSrc = getNextBagImage();
+
+      tile.innerHTML = `
+        <div class="ptile-img-wrap">
+          <img src="${imgSrc}" alt="${escapeHtml(prettyName)}" class="ptile-img" />
+          <div class="ptile-overlay">
+            <span class="ptile-view-btn">View Product</span>
           </div>
-          <div class="pcv2-badge ${stockClass}">${stockLabel}</div>
         </div>
-        <div class="pcv2-body">
-          <div class="pcv2-name">${escapeHtml(product.name)}</div>
-          <div class="pcv2-meta">
-            ${product.price ? `<span class="pcv2-price">$${product.price}</span>` : ''}
-            ${product.sku ? `<span class="pcv2-sku">${escapeHtml(product.sku)}</span>` : ''}
-          </div>
-          <div class="pcv2-cta">View Product <span>→</span></div>
+        <div class="ptile-info">
+          <div class="ptile-name">${escapeHtml(prettyName)}</div>
+          ${price ? `<div class="ptile-price">$${price}</div>` : ''}
+        </div>
+        <div class="ptile-link-row">
+          <span class="ptile-shop-link">Shop Now</span>
+          <span class="ptile-arrow">→</span>
         </div>
       `;
 
-      wrapper.appendChild(card);
-
-      // Fetch real product image asynchronously
-      if (product.slug) {
-        fetchProductImage(product.slug, card);
-      }
+      wrapper.appendChild(tile);
     });
 
     messagesEl.appendChild(wrapper);
     scrollToBottom();
   }
 
-  // ───── Fetch product image from server proxy ─────
-  async function fetchProductImage(slug, cardEl) {
-    try {
-      const res = await fetch(`/api/product-image?slug=${encodeURIComponent(slug)}`);
-      const data = await res.json();
-      if (data.image) {
-        const imgWrap = cardEl.querySelector('.pcv2-img-wrap');
-        const placeholder = imgWrap.querySelector('.pcv2-img-placeholder');
-        const img = document.createElement('img');
-        img.src = data.image;
-        img.alt = 'Product';
-        img.classList.add('pcv2-img');
-        img.onload = () => {
-          if (placeholder) placeholder.remove();
-          imgWrap.prepend(img);
-        };
-        img.onerror = () => {
-          // Keep placeholder with a bag emoji
-          const ph = imgWrap.querySelector('.pcv2-img-placeholder');
-          if (ph) ph.innerHTML = '<span style="font-size:40px">👜</span>';
-        };
-      } else {
-        const ph = cardEl.querySelector('.pcv2-img-placeholder');
-        if (ph) ph.innerHTML = '<span style="font-size:40px">👜</span>';
-      }
-    } catch (e) {
-      const ph = cardEl.querySelector('.pcv2-img-placeholder');
-      if (ph) ph.innerHTML = '<span style="font-size:40px">👜</span>';
-    }
-  }
+  // ═══════════════════════════════════════════════════════════
+  // INTERACTIVE ORDER TILES
+  // ═══════════════════════════════════════════════════════════
 
-  // ───── Render Order Cards ─────
-  function renderOrderCards(orders) {
+  function renderOrderTiles(orderIds, fullText) {
     const wrapper = document.createElement('div');
-    wrapper.classList.add('order-cards-wrapper');
+    wrapper.classList.add('order-tiles-wrapper');
 
-    orders.forEach((order, index) => {
-      const card = document.createElement('div');
-      card.classList.add('chat-order-card');
-      card.style.animationDelay = `${index * 0.12}s`;
+    orderIds.forEach((orderId, index) => {
+      const tile = document.createElement('div');
+      tile.classList.add('order-tile');
+      tile.style.animationDelay = `${index * 0.1}s`;
 
-      const statusClass = order.status.includes('Delivered') ? 'delivered' :
-                           order.status.includes('Shipped') || order.status.includes('Delivery') ? 'shipped' :
+      // Try to extract status, item, tracking near this order ID
+      const status = extractNearField(fullText, orderId, /status[:\s]+([^\n,]+)/i) || 'Processing';
+      const item = extractNearField(fullText, orderId, /(?:item|product)[:\s]+([^\n,]+)/i) || '';
+      const tracking = extractNearField(fullText, orderId, /(?:tracking|track)[:\s#]+([A-Z0-9]+)/i) || '';
+      const trackingLink = fullText.match(/https?:\/\/track\.boggbag\.com\/[A-Z0-9]+/i);
+      const amount = extractNearField(fullText, orderId, /\$(\d+(?:\.\d{2})?)/);
+
+      const statusLower = status.toLowerCase();
+      const statusClass = statusLower.includes('deliver') ? 'delivered' :
+                           statusLower.includes('ship') || statusLower.includes('delivery') || statusLower.includes('out for') ? 'shipped' :
                            'processing';
+      const statusIcon = statusClass === 'delivered' ? '✅' : statusClass === 'shipped' ? '🚚' : '⏳';
 
-      card.innerHTML = `
-        <div class="order-card-header">
-          <span class="order-id">${escapeHtml(order.orderId)}</span>
-          <span class="order-status ${statusClass}">${escapeHtml(order.status)}</span>
+      tile.innerHTML = `
+        <div class="otile-header">
+          <div class="otile-id-wrap">
+            <span class="otile-icon">📋</span>
+            <span class="otile-id">${escapeHtml(orderId)}</span>
+          </div>
+          <span class="otile-status ${statusClass}">${statusIcon} ${escapeHtml(status)}</span>
         </div>
-        <div class="order-card-body">
-          ${order.item ? `<div class="order-item">📦 ${escapeHtml(order.item)}</div>` : ''}
-          ${order.customer ? `<div class="order-detail">👤 ${escapeHtml(order.customer)}</div>` : ''}
-          ${order.amount ? `<div class="order-detail">💰 $${order.amount}</div>` : ''}
-          ${order.tracking && order.tracking !== 'N/A' ? `
-            <a href="${order.trackingLink || '#'}" target="_blank" class="order-tracking-btn">
-              🚚 Track: ${escapeHtml(order.tracking)}
+        <div class="otile-body">
+          ${item ? `<div class="otile-row"><span class="otile-label">📦 Item</span><span class="otile-value">${escapeHtml(item)}</span></div>` : ''}
+          ${amount ? `<div class="otile-row"><span class="otile-label">💰 Amount</span><span class="otile-value">$${amount}</span></div>` : ''}
+          ${tracking ? `
+            <a href="${trackingLink ? trackingLink[0] : '#'}" target="_blank" class="otile-track-btn" ${trackingLink ? '' : 'onclick="return false"'}>
+              🚚 Track Shipment: ${escapeHtml(tracking)}
             </a>
           ` : ''}
         </div>
       `;
 
-      wrapper.appendChild(card);
+      wrapper.appendChild(tile);
     });
 
     messagesEl.appendChild(wrapper);
     scrollToBottom();
+  }
+
+  // Extract a field value near an order ID in the text
+  function extractNearField(text, orderId, regex) {
+    // Try to find the value near the order ID mention
+    const idx = text.indexOf(orderId);
+    if (idx === -1) {
+      const match = text.match(regex);
+      return match ? match[1].trim() : null;
+    }
+    // Search in a window around the order ID
+    const window = text.substring(Math.max(0, idx - 100), Math.min(text.length, idx + 500));
+    const match = window.match(regex);
+    return match ? match[1].trim() : null;
   }
 
   function escapeHtml(str) {
