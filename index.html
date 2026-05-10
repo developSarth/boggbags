@@ -7,24 +7,265 @@
   <meta name="description" content="Explore the full BOGG BAG collection. Durable, washable totes for every adventure.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <!-- ═══════════════════════════════════════════════════════════════
-       TASK 1 — Full-screen iframe mirroring the reference site
+       TOP ANNOUNCEMENT BAR
        ═══════════════════════════════════════════════════════════════ -->
-  <iframe
-    id="site-mirror"
-    src="https://boggbag.com/collections/shop-all"
-    title="BOGG BAG – Shop All"
-    loading="eager"
-    allowfullscreen
-  ></iframe>
+  <div class="announcement-bar">
+    <p>🌴 FREE SHIPPING ON ORDERS OVER $100 🌴</p>
+  </div>
 
   <!-- ═══════════════════════════════════════════════════════════════
-       TASK 2 — Floating Chatbot Widget
+       NAVIGATION
+       ═══════════════════════════════════════════════════════════════ -->
+  <nav class="site-nav">
+    <div class="nav-left">
+      <a href="#" class="nav-link">SHOP ALL</a>
+      <a href="#" class="nav-link">NEW ARRIVALS</a>
+      <a href="#" class="nav-link">COLLECTIONS</a>
+      <a href="#" class="nav-link">ACCESSORIES</a>
+    </div>
+    <a href="#" class="nav-logo">
+      <span class="logo-bogg">BOGG</span>
+      <span class="logo-bag">BAG</span>
+      <span class="logo-reg">®</span>
+    </a>
+    <div class="nav-right-links">
+      <a href="#" class="nav-link">SALE</a>
+      <a href="#" class="nav-link">ABOUT</a>
+      <button class="nav-icon-btn" aria-label="Search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      </button>
+      <button class="nav-icon-btn" aria-label="Account">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </button>
+      <button class="nav-icon-btn cart-btn" aria-label="Cart">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <span class="cart-count">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       HERO BANNER
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="hero-banner">
+    <div class="hero-content">
+      <h1 class="hero-title">THE ORIGINAL<br>BEACH BAG</h1>
+      <p class="hero-subtitle">Tip-proof. Washable. Built for every adventure.</p>
+      <a href="#collection" class="hero-cta">SHOP THE COLLECTION</a>
+    </div>
+    <div class="hero-badge">🏖️ #1 Beach Tote in America</div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       COLLECTION GRID
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="collection-section" id="collection">
+    <div class="collection-header">
+      <h2 class="collection-title">Shop All Bags</h2>
+      <p class="collection-subtitle">Our iconic totes come in three sizes and every color imaginable.</p>
+      <div class="collection-filters">
+        <button class="filter-chip active">All</button>
+        <button class="filter-chip">Original</button>
+        <button class="filter-chip">Baby</button>
+        <button class="filter-chip">Bitty</button>
+        <button class="filter-chip">Limited Edition</button>
+      </div>
+    </div>
+
+    <div class="product-grid">
+      <!-- Product 1 -->
+      <div class="product-card">
+        <div class="product-img-wrap">
+          <div class="product-tag bestseller">BEST SELLER</div>
+          <img src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=600&q=80" alt="Original Bogg Bag - Turquoise" class="product-img" loading="lazy">
+          <button class="quick-add-btn">+ QUICK ADD</button>
+        </div>
+        <div class="product-meta">
+          <h3 class="product-title">Original Bogg Bag</h3>
+          <p class="product-color">Turquoise</p>
+          <p class="product-price">$89.95</p>
+        </div>
+      </div>
+
+      <!-- Product 2 -->
+      <div class="product-card">
+        <div class="product-img-wrap">
+          <div class="product-tag new">NEW</div>
+          <img src="https://images.unsplash.com/photo-1594223274512-ad4803739b7c?w=600&q=80" alt="Original Bogg Bag - Coral Pink" class="product-img" loading="lazy">
+          <button class="quick-add-btn">+ QUICK ADD</button>
+        </div>
+        <div class="product-meta">
+          <h3 class="product-title">Original Bogg Bag</h3>
+          <p class="product-color">Coral Pink</p>
+          <p class="product-price">$89.95</p>
+        </div>
+      </div>
+
+      <!-- Product 3 -->
+      <div class="product-card">
+        <div class="product-img-wrap">
+          <img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&q=80" alt="Baby Bogg Bag - Navy" class="product-img" loading="lazy">
+          <button class="quick-add-btn">+ QUICK ADD</button>
+        </div>
+        <div class="product-meta">
+          <h3 class="product-title">Baby Bogg Bag</h3>
+          <p class="product-color">Navy</p>
+          <p class="product-price">$69.95</p>
+        </div>
+      </div>
+
+      <!-- Product 4 -->
+      <div class="product-card">
+        <div class="product-img-wrap">
+          <div class="product-tag bestseller">BEST SELLER</div>
+          <img src="https://images.unsplash.com/photo-1614179689702-355944cd0918?w=600&q=80" alt="Original Bogg Bag - Blush" class="product-img" loading="lazy">
+          <button class="quick-add-btn">+ QUICK ADD</button>
+        </div>
+        <div class="product-meta">
+          <h3 class="product-title">Original Bogg Bag</h3>
+          <p class="product-color">Blush</p>
+          <p class="product-price">$89.95</p>
+        </div>
+      </div>
+
+      <!-- Product 5 -->
+      <div class="product-card">
+        <div class="product-img-wrap">
+          <div class="product-tag limited">LIMITED</div>
+          <img src="https://images.unsplash.com/photo-1591561954557-26941169b49e?w=600&q=80" alt="Original Bogg Bag - Leopard" class="product-img" loading="lazy">
+          <button class="quick-add-btn">+ QUICK ADD</button>
+        </div>
+        <div class="product-meta">
+          <h3 class="product-title">Original Bogg Bag</h3>
+          <p class="product-color">Leopard Print</p>
+          <p class="product-price">$99.95</p>
+        </div>
+      </div>
+
+      <!-- Product 6 -->
+      <div class="product-card">
+        <div class="product-img-wrap">
+          <img src="https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=600&q=80" alt="Bitty Bogg Bag - Yellow" class="product-img" loading="lazy">
+          <button class="quick-add-btn">+ QUICK ADD</button>
+        </div>
+        <div class="product-meta">
+          <h3 class="product-title">Bitty Bogg Bag</h3>
+          <p class="product-color">Sunshine Yellow</p>
+          <p class="product-price">$49.95</p>
+        </div>
+      </div>
+
+      <!-- Product 7 -->
+      <div class="product-card">
+        <div class="product-img-wrap">
+          <div class="product-tag new">NEW</div>
+          <img src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&q=80" alt="Baby Bogg Bag - Sage" class="product-img" loading="lazy">
+          <button class="quick-add-btn">+ QUICK ADD</button>
+        </div>
+        <div class="product-meta">
+          <h3 class="product-title">Baby Bogg Bag</h3>
+          <p class="product-color">Sage Green</p>
+          <p class="product-price">$69.95</p>
+        </div>
+      </div>
+
+      <!-- Product 8 -->
+      <div class="product-card">
+        <div class="product-img-wrap">
+          <img src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80" alt="Original Bogg Bag - Classic White" class="product-img" loading="lazy">
+          <button class="quick-add-btn">+ QUICK ADD</button>
+        </div>
+        <div class="product-meta">
+          <h3 class="product-title">Original Bogg Bag</h3>
+          <p class="product-color">Classic White</p>
+          <p class="product-price">$89.95</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FEATURES BAR
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="features-bar">
+    <div class="feature">
+      <span class="feature-icon">🌊</span>
+      <div>
+        <strong>Waterproof</strong>
+        <p>EVA material that won't absorb water</p>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🧼</span>
+      <div>
+        <strong>Washable</strong>
+        <p>Just hose it down – good as new</p>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">💪</span>
+      <div>
+        <strong>Tip-Proof</strong>
+        <p>Sturdy base that stays upright</p>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🚚</span>
+      <div>
+        <strong>Free Shipping</strong>
+        <p>On orders over $100</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>SHOP</h4>
+        <a href="#">Original Bogg Bag</a>
+        <a href="#">Baby Bogg Bag</a>
+        <a href="#">Bitty Bogg Bag</a>
+        <a href="#">Accessories</a>
+        <a href="#">Sale</a>
+      </div>
+      <div class="footer-col">
+        <h4>HELP</h4>
+        <a href="#">FAQ</a>
+        <a href="#">Shipping & Returns</a>
+        <a href="#">Track Order</a>
+        <a href="#">Contact Us</a>
+      </div>
+      <div class="footer-col">
+        <h4>ABOUT</h4>
+        <a href="#">Our Story</a>
+        <a href="#">Press</a>
+        <a href="#">Wholesale</a>
+        <a href="#">Careers</a>
+      </div>
+      <div class="footer-col">
+        <h4>FOLLOW US</h4>
+        <a href="#">Instagram</a>
+        <a href="#">Facebook</a>
+        <a href="#">TikTok</a>
+        <a href="#">Pinterest</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 BOGG BAG. All Rights Reserved. | This is a demo site.</p>
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CHATBOT WIDGET (unchanged)
        ═══════════════════════════════════════════════════════════════ -->
 
   <!-- Launcher button -->

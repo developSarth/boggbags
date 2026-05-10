@@ -41,35 +41,6 @@
     chatWindow.setAttribute('aria-hidden', String(!isOpen));
     launcher.classList.toggle('open', isOpen);
 
-    // Hide old chat widget inside iframe when it loads
-    const iframe = document.getElementById('site-mirror');
-    if (iframe) {
-      iframe.addEventListener('load', () => {
-        try {
-          const style = document.createElement('style');
-          style.innerHTML = `
-            #chat-widget-container, 
-            #dummy-chat-button-iframe, 
-            #gorgias-chat-container, 
-            #gorgias-web-messenger-container,
-            #gorgias-chat-messenger,
-            div[id^="gorgias"],
-            iframe[id^="gorgias"],
-            .zowie-chat-button,
-            iframe[id^="ShopifyChat"],
-            #shopify-chat {
-              display: none !important;
-              opacity: 0 !important;
-              visibility: hidden !important;
-            }
-          `;
-          iframe.contentWindow.document.head.appendChild(style);
-        } catch (e) {
-          console.error("Could not inject CSS into iframe", e);
-        }
-      });
-    }
-
     if (isOpen) {
       loadMessages();
       startPolling();
