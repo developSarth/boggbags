@@ -1,0 +1,20 @@
+{
+  "name": "bogg-baggs-demo",
+  "version": "1.0.0",
+  "description": "Bogg Bag Demo with AI Chatbot & n8n Integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "http-proxy-middleware": "^4.0.0",
+    "multer": "^1.4.5-lts.2"
+  }
+}

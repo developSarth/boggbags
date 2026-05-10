@@ -1,0 +1,974 @@
+{
+  "name": "bogg bag bea",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"skipped\": \"human_handling\"}",
+        "options": {}
+      },
+      "id": "a778dfeb-8c68-44e5-be91-f4cbd6c6b3fc",
+      "name": "Respond Human Handling",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        144,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "=processed:{{$json.event_id}}",
+        "options": {}
+      },
+      "id": "d52f4d10-339d-4ba7-95b9-667174b1facc",
+      "name": "Check Idempotency",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        160
+      ],
+      "credentials": {
+        "redis": {
+          "id": "IKnrsII2jGcOTN2F",
+          "name": "Redis account hari"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=processed:{{$('Parse & Normalize.1.2').item.json.event_id}}",
+        "value": "processing",
+        "expire": true,
+        "ttl": 600
+      },
+      "id": "d97af611-169e-4dd4-8f37-13c4d2d7b505",
+      "name": "Mark Processing",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        144,
+        224
+      ],
+      "credentials": {
+        "redis": {
+          "id": "IKnrsII2jGcOTN2F",
+          "name": "Redis account hari"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ULTIMATE DEBUG - See everything available\nreturn [{\n  json: {\n    debug_input_first: $input.first().json,\n    debug_input_all: $input.all(),\n    debug_available_nodes: Object.keys($workflow || {}),\n    debug_node_names: $workflow?.active?.nodes?.map(n => n.name) || 'unavailable'\n  }\n}];"
+      },
+      "id": "5cf7657a-0d13-4042-94df-f51c80e4dca6",
+      "name": "Prepare Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=conversation:{{ $json.debug_input_first.conversation_id }}",
+        "value": "={{JSON.stringify($json)}}",
+        "keyType": "hash"
+      },
+      "id": "9e0f0934-ff6f-4f6e-a0b6-6b1ebf83f4bb",
+      "name": "Write Redis Metadata",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        960,
+        224
+      ],
+      "credentials": {
+        "redis": {
+          "id": "IKnrsII2jGcOTN2F",
+          "name": "Redis account hari"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "agent": "openAiFunctionsAgent",
+        "promptType": "define",
+        "text": "=Customer Information:\nCustomer name: \n{{ $('Parse & Normalize.1.2').item.json.raw_payload.source.author.name }}\ncustomer email: \n{{ $('Parse & Normalize.1.2').item.json.raw_payload.source.author.email }}\nQuestion:  \n{{ $('Parse & Normalize.1.2').item.json.message_text }}\n\nImage data: \n{{ $json.Image_data.image_type }}\n{{ $json.Image_data.extracted_order_number }}\n{{ $json.Image_data.extracted_tracking_number }}\n{{ $json.Image_data.extracted_amount }}\n{{ $json.Image_data.summary }}\n{{ $json.Image_data.needs_escalation }}\n{{ $json.Image_data.enriched_message }}\n\n\n\n\nLanguage detected: {{ $('Parse & Normalize.1.2').item.json.raw_payload.custom_attributes.Language }}\n\n",
+        "options": {
+          "systemMessage": "=You are Ace, the AI customer service assistant for Crep, a shoe brand a warm, family-run e-commerce business. You're professional, empathetic, and solve problems quickly. You have conversation history and specialized tools to help customers effectively.\n\n\nCORE RULES - READ CAREFULLY\n\n1. LANGUAGE MATCHING (CRITICAL):\n   - French customer → Respond 100% in French\n   - English customer → Respond 100% in English\n   - NEVER mix languages\n\n2. SPEED & EFFICIENCY:\n   - Answer customer's question IMMEDIATELY using tools\n   - Never say \"I'll look that up for you\" - just do it and respond with the answer\n   - Goal: Solve issue in as few messages as possible\n   - Never mention using tools in your response (\"I used our system...\" ❌)\n\n3. CONVERSATION AWARENESS:\n   - Check conversation history BEFORE doing anything\n   - If you already looked up their order → Don't look it up again\n   - If you already escalated → Don't respond again, say: \"I've already connected you with our team—they'll respond shortly! 😊\"\n   - If customer sent multiple messages → Read all of them, respond once\n\n4. GREETINGS (IMPORTANT):\n   - First message: \"Hi [Name]! 😊\" (or \"Hi there! 😊\" if no name)\n   - Messages 2+: NO greeting, just respond directly\n   - Example: \"I've checked your order...\" (not \"Hi there! I've checked...\")\n\n5. SIGNATURES (CRITICAL):\n   - NEVER use \"Warm regards\", \"Best regards\", \"Sincerely\"\n   - NEVER add \"[Your Name]\" or \"[Bot Name]\"\n   - End naturally without signatures\n   - Exception: Only if customer asks who they're talking to → \"This is thesupport team\"\n\n6. TONE:\n   - Warm, friendly, conversational (not corporate)\n   - Use emojis sparingly: 😊 💛 ✨ 📦 🚚\n   - Empathetic when customers are frustrated\n   - Brief and clear (2-4 sentences max unless complex issue)\n   - Use customer's name when you have it\n7.OUTPUT STRCTURE:\n   - do not use any (*,;) or other special symbols in the output, keep it simple\n\n\nTOOLS YOU MUST USE\n\nYou have 1 tool. USE them when needed—don't guess or make up information.\n\n1. find_customer_orders\n   When: Customer asks about order, status, tracking, delivery time, or mentions order number\n  \n\n\n\n\nWHAT YOU HANDLE\n\n✅ Order tracking & status\n✅ Shipping questions & delivery times\n✅ Product availability & pricing\n✅ Account issues (login, password reset)\n✅ General FAQs (return policy, shipping costs, payment methods)\n✅ Discount codes (NEW15 for first-time buyers ONLY)\n   Customer provides order details via image/receipt\n\n\n\nWHEN TO ESCALATE IMMEDIATELY\n\nInclude the word \"ESCALATE\" in your response, which assigns the conversation to a human agent when customer:\n\n🚨 Requests refund or credit\n🚨 Wants to cancel order\n🚨 Wants to modify order (address, items, payment method)\n🚨 Reports missing items in order\n🚨 Has payment issues (e-transfer failed, payment not going through)\n🚨 Is angry/frustrated (profanity, ALL CAPS, multiple !!!)\n🚨 Explicitly asks for human agent\n🚨 Has complex/unusual situations you cannot resolve\n🚨 When you cannot find the information they need\n🚨 wants to place a large or wholesale order\n\nEscalation format:\nI completely understand your concern about [issue]. Let me connect you with our team who can help you with [specific issue] right away. \n\nESCALATE\n\nThey'll be with you shortly—thank you for your patience! 😊\n\n\n\nCRITICAL BUSINESS INFO\n\nSHIPPING:\n- Delivery: 2-8 business days (varies by location & courier)\n- Standard shipping: $19.99\n- Free shipping over $135 in the contiguous US\n- We ship US-wide\n\nCARRIERS:\n- Canada Post: ONLY for PO Box addresses\n- All other orders: More efficient, reliable carriers (don't go on strike)\n- Example response: \"We use Canada Post for PO Box deliveries. All other orders ship with faster, more reliable carriers! 📦\"\n\nPAYMENT:\n- Credit/debit cards (all major brands)\n- Interac e-Transfer\n- NO ID required to purchase\n\nACCOUNT:\n-\n- No physical store/pickup—online only, we ship directly to you\n\nDISCOUNT CODES:\n- NEW15: 15% off for FIRST-TIME customers ONLY\n- Before giving NEW15 → Use find_customer_orders to check order history\n- If customer HAS previous orders → Say: \"NEW15 is for first-time customers. We encourage you to register an account on our website to stay updated on any upcoming promotions or discounts. By signing up, you'll also receive email notifications regarding special offers and promotions as they become available. 💛\"\n- If customer has NO previous orders → Give NEW15\n- NEVER mention affiliate programs, referral links, or partner programs (not active)\n\n\n\n\nRESPONSE EXAMPLES\n\nExample 1 - Order Status:\n\"I've checked your order #12345—it's been shipped! Your tracking number is ABC123XYZ. Delivery typically takes 2-8 business days depending on your location. You should have received a tracking email—check your inbox and spam folder just in case. 📦\n\nIf you need anything else, let me know!\"\n\nExample 2 - Product Stock:\n\"Yes, we have {product} in stock at $x! If you'd like to place an order, just head to our website. Let me know if you need help with anything else! 😊\"\n\nExample 3 - Escalation:\n\"I see you want to speak to a person. Let me connect you with our team who can review this right away. ESCALATE\n\nThey'll be with you shortly! 😊\"\n\nExample 4 - Delay Complaint (already gave tracking):\n\"I completely understand your frustration about the delay—I sincerely apologize. Shipping can sometimes take longer than expected depending on the courier and your location. If there's anything specific I can help with, please let me know! 💛\"\n\n\nEDGE CASES\n\nInvalid order number:\n\"I wasn't able to find that order number. Could you double-check? It should be in your confirmation email. 😊\"\n\nCustomer switches topics mid-conversation:\n\"Got it! Happy to help with [new topic] instead.\" → Then answer new question\n\nUnclear/gibberish message:\n\"I want to make sure I help you properly—could you clarify what you need? 😊\"\n\nCustomer asks about \"pickup today\":\n\"We operate online only, so all orders are shipped directly to you. If you place and pay before 12 PM EST, your order ships the same day! 🚚\"\n\n\n\n\n\nNEVER DO THESE THINGS\n\n❌ Promise or process refunds (escalate instead)\n❌ Modify orders (escalate instead)\n❌ Share other customers' information\n❌ Process payments or collect credit card info\n❌ Make up information when uncertain\n❌ Look up same order multiple times in one conversation\n❌ Give NEW15 to returning customers\n❌ Mention tools in your responses (\"I used our database...\" ❌)\n❌ Say \"contact support team\"—YOU are support (escalate if needed)\n❌ Use sign-offs (Warm regards, [Your Name], etc.)\n❌ Say \"Hi there\" after the first message\n❌ Mention affiliate/referral programs (not active)\n❌ Respond to conversations already assigned to humans\n❌ Respond to emails from stripe.com domains\n\n\n\nCRITICAL REMINDERS\n\n✓ Match customer's language exactly\n✓ Use tools immediately—don't announce you're using them\n✓ Check conversation history first (avoid repetition)\n✓ If you already escalated, don't respond again\n✓ If customer sent images, escalate immediately\n✓ Include \"ESCALATE\" keyword when escalating (triggers routing)\n✓ Be concise—solve fast\n✓ Emphasize family business when appropriate\n✓ First message: greeting. Messages 2+: no greeting\n✓ NEVER use signatures or sign-offs\n\n"
+        }
+      },
+      "id": "5ded114b-4ca1-44f8-b4be-60ca9980bc30",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.5,
+      "position": [
+        1248,
+        96
+      ],
+      "notesInFlow": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.output}}",
+              "operation": "contains",
+              "value2": "ESCALATE"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "557b1d1a-2e75-45b7-8598-cbc160701764",
+      "name": "Check AI Response for Escalation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1664,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=conversation:{{$('Parse & Normalize.1.2').item.json.conversation_id}}",
+        "value": "={{\n  {\n    status: 'escalated',\n    assigned_to: 'human_pending',\n    escalated_at: new Date().toISOString(),\n    escalation_reason: 'ai_detected_or_customer_request'\n  }\n}}",
+        "keyType": "hash",
+        "expire": true,
+        "ttl": 2592000
+      },
+      "id": "bf12bd08-944b-4439-8610-834a6264c09f",
+      "name": "Update Redis Escalated",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        2352,
+        -176
+      ],
+      "credentials": {
+        "redis": {
+          "id": "IKnrsII2jGcOTN2F",
+          "name": "Redis account hari"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"action\": \"escalated\"}",
+        "options": {}
+      },
+      "id": "d533adbc-d66c-4c8c-b9fa-07163a7f6ead",
+      "name": "Respond Escalated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2576,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=conversation:{{$json.event_id}}",
+        "value": "={{   {     status: 'answered',     last_author: 'admin',     updated_at: new Date().toISOString()   } }}",
+        "keyType": "hash",
+        "expire": true,
+        "ttl": 2592000
+      },
+      "id": "3ec6c604-39a2-460b-819b-a0518e081df2",
+      "name": "Update Redis Final",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        32
+      ],
+      "credentials": {
+        "redis": {
+          "id": "IKnrsII2jGcOTN2F",
+          "name": "Redis account hari"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "=processed:{{$json.event_id}}"
+      },
+      "id": "b83a3206-bd7d-430b-a4a8-81590c6973c0",
+      "name": "Clear Lock",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        2352,
+        32
+      ],
+      "credentials": {
+        "redis": {
+          "id": "IKnrsII2jGcOTN2F",
+          "name": "Redis account hari"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true}",
+        "options": {}
+      },
+      "id": "2640b506-6925-4f49-8d5e-8fb807ab4ade",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2576,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=conversation:{{$('Parse & Normalize.1.2').item.json.conversation_id}}",
+        "value": "={{\n  {\n    last_author: 'user',\n    updated_at:  $('Parse & Normalize.1.2').item.json.timestamp\n  }\n}}",
+        "keyType": "hash"
+      },
+      "id": "4711b375-22d8-45bc-b2f8-0179967d2cbf",
+      "name": "Redis Update Only",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        144,
+        656
+      ],
+      "credentials": {
+        "redis": {
+          "id": "IKnrsII2jGcOTN2F",
+          "name": "Redis account hari"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"skipped\": \"bot_reply\"}",
+        "options": {}
+      },
+      "id": "eef729e4-ac42-4c75-9e08-5d5f7c56a4fb",
+      "name": "Respond Bot Skip",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        368,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"skipped\": \"duplicate\"}",
+        "options": {}
+      },
+      "id": "8249af55-c2a3-40d5-ae36-2a31cff1842a",
+      "name": "Respond Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        144,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b28c4e74-6cf3-4989-94d5-ff5a7015ef5d",
+              "name": "conversation_id",
+              "value": "={{ $('Parse & Normalize.1.2').item.json.conversation_id }}",
+              "type": "string"
+            },
+            {
+              "id": "d03880ad-82ca-40d1-97ab-9cdcef2dedac",
+              "name": "topic",
+              "value": "={{ $('Parse & Normalize.1.2').item.json.topic }}",
+              "type": "string"
+            },
+            {
+              "id": "6dacee94-fd68-4a31-969b-d3a564452340",
+              "name": "raw_payload.source.author.name",
+              "value": "={{ $('Parse & Normalize.1.2').item.json.raw_payload.source.author.name }}",
+              "type": "string"
+            },
+            {
+              "id": "ec9abf5a-eab5-48df-be9c-58531bb62f81",
+              "name": "raw_payload.source.author.email",
+              "value": "={{ $('Parse & Normalize.1.2').item.json.raw_payload.source.author.email }}",
+              "type": "string"
+            },
+            {
+              "id": "dee43a5d-fae7-4730-ab1d-f4986b56d3c7",
+              "name": "raw_payload.custom_attributes.Language",
+              "value": "={{ $('Parse & Normalize.1.2').item.json.raw_payload.custom_attributes.Language }}",
+              "type": "string"
+            },
+            {
+              "id": "36c38855-a4c9-4549-9c10-dbc5f4929b5a",
+              "name": "message_text",
+              "value": "={{ $('Parse & Normalize.1.2').item.json.message_text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        512,
+        224
+      ],
+      "id": "2da7fc36-69e3-4bc2-bc75-6bb077a52aa9",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Parse & Normalize.1.2').first().json.conversation_id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        368
+      ],
+      "id": "0faee0c9-ac70-4805-95c3-f3da72926101",
+      "name": "Redis Chat Memory",
+      "credentials": {
+        "redis": {
+          "id": "IKnrsII2jGcOTN2F",
+          "name": "Redis account hari"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1c57e224-8e41-4d28-90a7-c486207666b7",
+                    "leftValue": "={{ $('Parse & Normalize.1.2').item.json.has_attachments }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "bd89c9b4-bad5-4763-b2a0-de9f8a96f12f",
+                    "leftValue": "={{ $('Parse & Normalize.1.2').item.json.is_human_handling }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "980fea4b-ceb6-4df2-8534-40499da277a9",
+                    "leftValue": "={{ $('Parse & Normalize.1.2').item.json.should_skip }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b9e568bc-46ca-4b27-afab-08f91bb4f39e",
+                    "leftValue": "",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -224,
+        112
+      ],
+      "id": "d27d9ffa-36d5-4d5f-93ac-24ab4b1c89a7",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true}",
+        "options": {}
+      },
+      "id": "fdb1e752-bb44-42ad-b834-9251b89397e1",
+      "name": "Respond Success1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        336,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"max_tokens\": 500,\n  \"temperature\": 0,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an image analysis assistant for an e-commerce customer service system. Analyze the image and return ONLY a raw valid JSON object. No markdown. No explanation. No code fences. Just the JSON object.\\n\\nReturn exactly this structure:\\n{\\n  \\\"image_type\\\": \\\"order_screenshot | tracking_screenshot | payment_screenshot | damaged_package | wrong_item | other\\\",\\n  \\\"extracted_order_number\\\": \\\"string or null\\\",\\n  \\\"extracted_tracking_number\\\": \\\"string or null\\\",\\n  \\\"extracted_amount\\\": \\\"string or null\\\",\\n  \\\"summary\\\": \\\"one sentence max describing exactly what the customer is showing\\\"\\n}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"{{ $('Webhook').item.json.body.data.item.source.attachments[0].url }}\",\n            \"detail\": \"high\"\n          }\n        },\n        {\n          \"type\": \"text\",\n          \"text\": \"={{ 'Customer name: ' + ($('Parse & Normalize.1.2').item.json.raw_payload.source.author.name || 'Unknown') + '\\\\nCustomer message: ' + ($('Parse & Normalize.1.2').item.json.message_text || 'No text, image only') + '\\\\nLanguage: ' + ($('Parse & Normalize.1.2').item.json.raw_payload.custom_attributes.Language || 'English') }}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "d84203f6-f0e3-4792-bbc4-a8614c2505e7",
+      "name": "Vision API Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        400,
+        -192
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Y2BV9yKCZN5K1VCY",
+          "name": "OpenAI Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\n\n// Parse vision API response\nconst content = raw?.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(content);\n} catch(e) {\n  parsed = {\n    image_type: 'other',\n    summary: 'Could not parse image content',\n    extracted_order_number: null,\n    extracted_tracking_number: null,\n    extracted_amount: null\n  };\n}\n\n// These image types go straight to escalation - no AI Agent\nconst escalateTypes = ['damaged_package', 'wrong_item', 'other'];\nconst needsEscalation = escalateTypes.includes(parsed.image_type);\n\n// Build enriched text message for AI Agent\n// Agent reads this as normal text and uses its tools on it\nconst enrichedParts = [\n  `Customer message: ${$('Parse & Normalize.1.2').item.json.message_text || 'No text message'}`,\n  `Image type: ${parsed.image_type}`,\n  parsed.extracted_order_number ? `Order number from image: ${parsed.extracted_order_number}` : null,\n  parsed.extracted_tracking_number ? `Tracking number from image: ${parsed.extracted_tracking_number}` : null,\n  parsed.extracted_amount ? `Amount from image: ${parsed.extracted_amount}` : null,\n  `Image summary: ${parsed.summary}`\n].filter(Boolean).join('\\n');\n\n// Build escalation message for damaged/wrong item cases\nconst customerName = $('Parse & Normalize.1.2').item.json.raw_payload.source.author.name || '';\nconst language = $('Parse & Normalize.1.2').item.json.raw_payload.custom_attributes?.Language || 'English';\n\nlet escalationOutput;\nif (language.toLowerCase().includes('fr')) {\n  escalationOutput = `Je suis vraiment désolé de voir ça${customerName ? ', ' + customerName.split(' ')[0] : ''}. Laissez-moi vous connecter avec notre équipe qui pourra résoudre ce problème immédiatement.\\n\\nESCALATE\\n\\nIls seront avec vous sous peu! 😊`;\n} else {\n  escalationOutput = `I'm so sorry to see this${customerName ? ', ' + customerName.split(' ')[0] : ''}. Let me connect you with our team who can resolve this right away.\\n\\nESCALATE\\n\\nThey'll be with you shortly! 😊`;\n}\n\nreturn [{\n  json: {\n  Image_data:{\n    ...parsed,\n    needs_escalation: needsEscalation,\n    enriched_message: enrichedParts,\n  }  \n  }\n}];"
+      },
+      "id": "10f3f362-079a-41e3-9a08-07467314ec54",
+      "name": "Format Vision Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chatbot",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1232,
+        160
+      ],
+      "id": "e5e4c0b3-82c0-4fd8-a175-dfe114491ac0",
+      "name": "Webhook",
+      "webhookId": "0a6452a4-01ac-40d7-abe8-69395f6994e4"
+    },
+    {
+      "parameters": {
+        "content": "sarth"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1312,
+        128
+      ],
+      "id": "7bb7aa49-e7ec-4e95-9065-d472abc542a2",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1152,
+        368
+      ],
+      "id": "27ae7234-0f7a-4a76-a40a-1cb6da9294b3",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "iy0pdAEv88RiU8Sc",
+          "name": "OpenAI account chat demo key 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\n\nconst body = raw.body || {};\nconst item = body.data?.item || {};\nconst source = item.source || {};\nconst contact = item.contacts?.contacts?.[0] || {};\nconst firstPart = item.conversation_parts?.conversation_parts?.[0] || {};\n\nconst author = source.author || firstPart.author || {};\n\nconst conversationId = item.id || '';\nconst userId = contact.id || author.id || '';\nconst userEmail = author.email || null;\n\nconst brand = item.custom_attributes?.Brand || null;\nconst topic = body.topic || '';\n\nconst authorType = author.type || 'user';\nconst authorId = author.id || '';\n\nconst rawMessage =\n  source.body ||\n  firstPart.body ||\n  '';\n\nfunction stripHtml(html = '') {\n  return html.replace(/<[^>]*>/g, '').trim();\n}\n\nconst messageText = stripHtml(rawMessage);\n\nconst isAIReply =\n  author.from_ai_agent === true ||\n  author.is_ai_answer === true;\n\nconst hasAttachments =\n  (source.attachments?.length || 0) > 0 ||\n  (firstPart.attachments?.length || 0) > 0;\n\nconst tagNames =\n  item.tags?.tags?.map(tag => tag.name) || [];\n\nconst eventId = body.id || '';\n\nconst channel = source.delivered_as || 'intercom';\n\n// Custom logic flags\nconst isEtransfer =\n  /e-?transfer|bank transfer|wire transfer/i.test(messageText);\n\nconst isHumanHandling =\n  item.admin_assignee_id !== null ||\n  item.team_assignee_id !== null;\n\nconst blockedEmails = [\n  'no-reply@example.com',\n  'test@example.com'\n];\n\nconst allowedBrands = [\n  'NS4L'\n];\n\nconst isBlockedSenderEmail =\n  blockedEmails.includes((userEmail || '').toLowerCase());\n\nconst isWrongBrand =\n  brand ? !allowedBrands.includes(brand) : false;\n\nconst shouldSkip =\n  isAIReply ||\n  isBlockedSenderEmail ||\n  isWrongBrand;\n\nreturn [{\n  json: {\n    conversation_id: String(conversationId),\n    user_id: String(userId || 'unknown'),\n    user_email: userEmail || null,\n    brand: brand || null,\n    topic: topic || '',\n    author_type: authorType || 'user',\n    author_id: String(authorId || ''),\n    message_text: messageText.substring(0, 500),\n    is_ai_reply: !!isAIReply,\n    is_etransfer: !!isEtransfer,\n    has_attachments: !!hasAttachments,\n    should_skip: !!shouldSkip,\n    isBlockedSenderEmail: !!isBlockedSenderEmail,\n    isWrongBrand: !!isWrongBrand,\n\n    // Debugging\n    event_id: eventId,\n    channel: channel,\n    timestamp: new Date().toISOString(),\n    raw_subject: source.subject || '',\n    tags: tagNames,\n\n    // Original normalized payload\n    raw_payload: item\n  }\n}];"
+      },
+      "id": "c22212fb-02e0-4ede-9c57-b5a805591061",
+      "name": "Parse & Normalize.1.2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://crep-6otz.onrender.com/api/bot-reply",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "reply",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1936,
+        32
+      ],
+      "id": "cc67d90f-3ffb-4a41-bde7-11d244718c2a",
+      "name": "HTTP Request1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://crep-6otz.onrender.com/api/bot-reply",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "reply",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1936,
+        -176
+      ],
+      "id": "5ddca5bd-e75d-4caf-bf8e-064409534025",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "description": "Call this tool to retrieve Customer's order details by either their name, email or order id.",
+        "jsCode": "const orders = [\n  {\n    email: \"sarah.jenkins@gmail.com\",\n    customer_name: \"Sarah Jenkins\",\n    order_id: \"BOGG-5001\",\n    order_date: \"2026-05-01\",\n    product_id: \"BB-ORG-PINK\",\n    product: \"Original Bogg Bag\",\n    variant: \"Pink Taffy\",\n    category: \"Totes\",\n    quantity: 1,\n    amount_usd: 90.00,\n    shipping_address: \"Austin, TX\",\n    status: \"Out for Delivery\",\n    tracking_number: \"TRK92837465\",\n    tracking_link: \"https://track.boggbag.com/TRK92837465\"\n  },\n  {\n    email: \"sarah.jenkins@gmail.com\",\n    customer_name: \"Sarah Jenkins\",\n    order_id: \"BOGG-5002\",\n    order_date: \"2026-04-22\",\n    product_id: \"BB-BEVY-CORAL\",\n    product: \"Bogg Bevy (Cup Holder)\",\n    variant: \"Capri Coral\",\n    category: \"Accessories\",\n    quantity: 2,\n    amount_usd: 30.00,\n    shipping_address: \"Austin, TX\",\n    status: \"Delivered\",\n    tracking_number: \"TRK81234765\",\n    tracking_link: \"https://track.boggbag.com/TRK81234765\"\n  },\n  {\n    email: \"m.roberts88@yahoo.com\",\n    customer_name: \"Mike Roberts\",\n    order_id: \"BOGG-5003\",\n    order_date: \"2026-05-03\",\n    product_id: \"BB-BABY-TEAL\",\n    product: \"Baby Bogg Bag\",\n    variant: \"Turquoise\",\n    category: \"Totes\",\n    quantity: 1,\n    amount_usd: 70.00,\n    shipping_address: \"Miami, FL\",\n    status: \"Shipped\",\n    tracking_number: \"TRK67283910\",\n    tracking_link: \"https://track.boggbag.com/TRK67283910\"\n  },\n  {\n    email: \"emily.chen@hotmail.com\",\n    customer_name: \"Emily Chen\",\n    order_id: \"BOGG-5004\",\n    order_date: \"2026-05-08\",\n    product_id: \"BB-BITTY-YEL\",\n    product: \"Bitty Bogg Bag\",\n    variant: \"Limoncello\",\n    category: \"Totes\",\n    quantity: 1,\n    amount_usd: 50.00,\n    shipping_address: \"San Diego, CA\",\n    status: \"Processing\",\n    tracking_number: \"TRK19827364\",\n    tracking_link: \"https://track.boggbag.com/TRK19827364\"\n  }\n];\n\n// =====================================\n// GET AI TOOL INPUT\n// =====================================\nlet rawQuery = '', rawEmail = '', rawOrderId = '';\ntry {\n  if (typeof query !== 'undefined') {\n    if (typeof query === 'string') {\n      rawQuery = query;\n    } else if (query && typeof query === 'object') {\n      rawQuery = String(query.query || query.text || '');\n      rawEmail = String(query.email || '');\n      rawOrderId = String(query.order_id || query.orderId || '');\n    }\n  }\n} catch(e) {}\ntry { if (!rawEmail && typeof email !== 'undefined' && typeof email === 'string') rawEmail = email; } catch(e) {}\ntry { if (!rawOrderId && typeof order_id !== 'undefined' && typeof order_id === 'string') rawOrderId = order_id; } catch(e) {}\n\nconst userQuery = rawQuery.toLowerCase().trim();\nconst providedEmail = rawEmail.toLowerCase().trim();\nconst providedOrderId = rawOrderId.toLowerCase().trim();\n\n// =====================================\n// SANITIZATION LAYER (Handles messy text)\n// =====================================\n// Strips everything except letters and numbers for flawless ID matching\nconst cleanId = (str) => str.replace(/[^a-z0-9]/gi, '');\nconst sanitizedProvidedId = cleanId(providedOrderId);\n\n// Email Detection Regex\nconst emailRegex = /[^\\s@]+@[^\\s@]+\\.[^\\s@]+/;\nlet finalEmail = providedEmail;\nif (!finalEmail) {\n  const detectedEmail = userQuery.match(emailRegex);\n  if (detectedEmail) finalEmail = detectedEmail[0];\n}\n\n// =====================================\n// FLEXIBLE ORDER SEARCH\n// =====================================\nlet matchedOrders = orders.filter(order => {\n  const sanitizedDbId = cleanId(order.order_id);\n  \n  // 1. Exact Order ID Match (Sanitized)\n  if (sanitizedProvidedId && sanitizedDbId.includes(sanitizedProvidedId)) {\n    return true;\n  }\n  \n  // 2. Exact Email Match\n  if (finalEmail && order.email.toLowerCase() === finalEmail) {\n    return true;\n  }\n  \n  // 3. Fallback Conversational Matching (if user asks \"where is my baby bogg bag\")\n  const searchableText = `${order.order_id} ${order.product} ${order.variant} ${order.status}`.toLowerCase();\n  return userQuery.split(/\\s+/).filter(w => w.length > 3).some(word => searchableText.includes(word));\n});\n\n// =====================================\n// RESPONSE HANDLING\n// =====================================\nif (matchedOrders.length === 0) {\n  return `No orders found. Please ask the customer to verify their Order ID or Email address.`;\n}\n\n// Sort by newest\nmatchedOrders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));\nconst latestOrder = matchedOrders[0];\n\nreturn `\n[API ORDER LOOKUP SUCCESS]\nCustomer: ${latestOrder.customer_name}\nOrder ID: ${latestOrder.order_id}\nItem: ${latestOrder.product} (${latestOrder.variant})\nStatus: ${latestOrder.status}\nTracking #: ${latestOrder.tracking_number}\nTracking Link: ${latestOrder.tracking_link}\n`;",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"query\": {\n      \"type\": \"string\",\n      \"description\": \"Customer order tracking query, email address, tracking request, shipment question, delivery status request, or order ID lookup.\"\n    },\n    \"email\": {\n      \"type\": \"string\",\n      \"description\": \"Customer email address used while placing the order.\"\n    },\n    \"order_id\": {\n      \"type\": \"string\",\n      \"description\": \"Customer order ID if mentioned.\"\n    }\n  },\n  \"required\": [\"query\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        1504,
+        368
+      ],
+      "id": "d338df2b-eb1f-4fdf-8640-c551f1136a0f",
+      "name": "Bogg order lookup"
+    },
+    {
+      "parameters": {
+        "description": "Call this tool to search the Bogg Bag product catalog for Totes (Original, Baby, Bitty), Accessories (Coolers, Bevy holders, Dividers), and Bogg Bits (Charms). Use it whenever a customer asks about product availability, stock status (\"is it in stock?\"), current pricing, or needs a direct link to a specific item. The tool provides real-time inventory status and direct-to-cart URLs. Always use this tool instead of guessing product details.",
+        "jsCode": "const products = [\n  // --- ORIGINAL BOGG BAG (LARGE) ---\n  { id: \"BB-ORG-PINK\", name: \"Original Bogg Bag\", variant: \"Pink Taffy\", category: \"Totes\", price_usd: 100, stock: 45, url: \"https://boggbag.com/products/original-bogg-bag-pink-taffy\", description: \"The original award-winning Bogg Bag in Pink Taffy.\" },\n  { id: \"BB-ORG-BLK\", name: \"Original Bogg Bag\", variant: \"LBD Black\", category: \"Totes\", price_usd: 100, stock: 2, url: \"https://boggbag.com/products/original-bogg-bag-lbd-black\", description: \"The original award-winning Bogg Bag in classic LBD Black.\" },\n  { id: \"BB-ORG-NAVY\", name: \"Original Bogg Bag\", variant: \"You Navy Me Crazy\", category: \"Totes\", price_usd: 100, stock: 15, url: \"https://boggbag.com/products/original-bogg-bag-you-navy-me-crazy\", description: \"The original award-winning Bogg Bag in Navy Blue.\" },\n  { id: \"BB-ORG-GRN\", name: \"Original Bogg Bag\", variant: \"Green with Envy\", category: \"Totes\", price_usd: 100, stock: 8, url: \"https://boggbag.com/products/original-bogg-bag-green-with-envy\", description: \"The original award-winning Bogg Bag in Green with Envy.\" },\n  { id: \"BB-ORG-WHT\", name: \"Original Bogg Bag\", variant: \"For Shore White\", category: \"Totes\", price_usd: 100, stock: 20, url: \"https://boggbag.com/products/original-bogg-bag-for-shore-white\", description: \"Classic white Original Bogg Bag.\" },\n  { id: \"BB-ORG-COR-STR\", name: \"Original Bogg Bag\", variant: \"Capri Coral Stripe\", category: \"Totes\", price_usd: 100, stock: 12, url: \"https://boggbag.com/products/original-bogg-bag-capri-coral-stripe\", description: \"Striped edition of the Original Bogg Bag.\" },\n  { id: \"BB-ORG-LIM-STR\", name: \"Original Bogg Bag\", variant: \"Limoncello Yellow Stripe\", category: \"Totes\", price_usd: 100, stock: 5, url: \"https://boggbag.com/products/original-bogg-bag-limoncello-yellow-stripe\", description: \"Striped edition in Limoncello Yellow.\" },\n\n  // --- BABY BOGG BAG (MEDIUM) ---\n  { id: \"BB-BABY-MYK\", name: \"Baby Bogg Bag\", variant: \"Mykonos Blue\", category: \"Totes\", price_usd: 80, stock: 10, url: \"https://boggbag.com/products/baby-bogg-bag-mykonos-blue\", description: \"Medium-sized tote in bright Mykonos Blue.\" },\n  { id: \"BB-BABY-CHECK\", name: \"Baby Bogg Bag\", variant: \"Checkered Coconut/Mushroom\", category: \"Totes\", price_usd: 80, stock: 5, url: \"https://boggbag.com/products/baby-bogg-bag-checkered-coconut-mushroom\", description: \"Checkered pattern edition Baby Bogg Bag.\" },\n  { id: \"BB-BABY-TURQ\", name: \"Baby Bogg Bag\", variant: \"Turquoise and Caicos\", category: \"Totes\", price_usd: 80, stock: 0, url: \"https://boggbag.com/products/baby-bogg-bag-turquoise-and-caicos\", description: \"Mid-sized tote in Turquoise.\" },\n  { id: \"BB-BABY-LILAC\", name: \"Baby Bogg Bag\", variant: \"I Lilac You a Lot\", category: \"Totes\", price_usd: 80, stock: 14, url: \"https://boggbag.com/products/baby-bogg-bag-i-lilac-you-a-lot\", description: \"Mid-sized tote in Lilac purple.\" },\n  { id: \"BB-BABY-CORAL\", name: \"Baby Bogg Bag\", variant: \"Capri Coral\", category: \"Totes\", price_usd: 80, stock: 22, url: \"https://boggbag.com/products/baby-bogg-bag-capri-coral\", description: \"Mid-sized tote in Capri Coral.\" },\n\n  // --- BITTY BOGG BAG (SMALL) ---\n  { id: \"BB-BITTY-SKY\", name: \"Bitty Bogg Bag\", variant: \"Blue Skies and Bogg Bag\", category: \"Totes\", price_usd: 60, stock: 12, url: \"https://boggbag.com/products/bitty-bogg-r-bag-blue-skies-and-bogg-bag\", description: \"Smallest size Bogg Bag in Light Blue.\" },\n  { id: \"BB-BITTY-LIM\", name: \"Bitty Bogg Bag\", variant: \"Limoncello Yellow\", category: \"Totes\", price_usd: 60, stock: 7, url: \"https://boggbag.com/products/bitty-bogg-bag-limoncello-yellow\", description: \"Smallest size Bogg Bag in Limoncello.\" },\n  { id: \"BB-BITTY-PNK\", name: \"Bitty Bogg Bag\", variant: \"Blowing Pink Bubbles\", category: \"Totes\", price_usd: 60, stock: 8, url: \"https://boggbag.com/products/bitty-bogg-bag-blowing-pink-bubbles\", description: \"Smallest size Bogg Bag in Pink.\" },\n\n  // --- ACCESSORIES & COOLERS ---\n  { id: \"BB-BEVY-CORAL\", name: \"Bogg Bevy\", variant: \"Capri Coral\", category: \"Accessories\", price_usd: 20, stock: 100, url: \"https://boggbag.com/products/bogg-bevy-capri-coral\", description: \"Drink holder in Capri Coral.\" },\n  { id: \"BB-BRRR-PNK\", name: \"Bogg Brrr Half Cooler\", variant: \"Pink Taffy\", category: \"Accessories\", price_usd: 60, stock: 15, url: \"https://boggbag.com/products/bogg-brrr-and-a-half-cooler-insert-pink-taffy\", description: \"Insulated half cooler insert in Pink Taffy.\" },\n  { id: \"BB-BRRR-BURST\", name: \"Bogg Brrr Half Cooler\", variant: \"Color Burst\", category: \"Accessories\", price_usd: 60, stock: 10, url: \"https://boggbag.com/products/bogg-brrr-and-a-half-cooler-insert-color-burst\", description: \"Insulated half cooler insert in Color Burst pattern.\" },\n  { id: \"BB-DIV-WHT\", name: \"Divvy Up Bag Divider\", variant: \"For Shore White\", category: \"Accessories\", price_usd: 20, stock: 10, url: \"https://boggbag.com/products/divvy-up-for-shore-white\", description: \"White bag divider for Original Bogg Bag.\" },\n  { id: \"BB-DIV-BLK\", name: \"Divvy Up Bag Divider\", variant: \"LBD Black\", category: \"Accessories\", price_usd: 20, stock: 5, url: \"https://boggbag.com/products/divvy-up-lbd-black\", description: \"Black bag divider for Original Bogg Bag.\" },\n  { id: \"BB-TOP-CHECK\", name: \"Top o' the Bogg to Ya\", variant: \"Checkered Coconut/Mushroom\", category: \"Accessories\", price_usd: 35, stock: 12, url: \"https://boggbag.com/products/top-o-the-bogg-to-ya-checkered-coconut-mushroom\", description: \"Tabletop tray for Original Bogg Bag.\" },\n\n  // --- BOGG BITS (CHARMS) ---\n  { id: \"BB-BIT-PAW\", name: \"Bogg Bit\", variant: \"Paw\", category: \"Charms\", price_usd: 15, stock: 50, url: \"https://boggbag.com/products/bogg-bit-paw\", description: \"Paw print decorative charm.\" },\n  { id: \"BB-BIT-POPS\", name: \"Bogg Bit\", variant: \"Popsicle\", category: \"Charms\", price_usd: 15, stock: 30, url: \"https://boggbag.com/products/bogg-bits-popsicle\", description: \"Popsicle decorative charm.\" },\n  { id: \"BB-BIT-ICE\", name: \"Bogg Bit\", variant: \"Ice Cream\", category: \"Charms\", price_usd: 15, stock: 25, url: \"https://boggbag.com/products/bogg-bit-ice-cream\", description: \"Ice cream cone decorative charm.\" },\n  { id: \"BB-BIT-BASKET\", name: \"Bogg Bit\", variant: \"Basketball\", category: \"Charms\", price_usd: 15, stock: 40, url: \"https://boggbag.com/products/bogg-bit-basketball\", description: \"Basketball decorative charm.\" }\n];\n\n// =====================================\n// INPUT EXTRACTION\n// =====================================\nlet rawQuery = '';\ntry {\n  if (typeof query === 'string') rawQuery = query;\n  else if (query && typeof query === 'object') {\n    rawQuery = query.query || query.text || query.product_name || query.url || '';\n  }\n} catch (e) {}\n\nconst userQuery = String(rawQuery).toLowerCase().trim();\n\n// =====================================\n// API SEARCH SIMULATION\n// =====================================\n// Clean stop words specific to this search intent\nconst stopWords = ['stock', 'check', 'price', 'url', 'https', 'com', 'products', 'the', 'is', 'in'];\nconst keywords = userQuery.split(/[\\s\\/-]+/).filter(word => word.length > 2 && !stopWords.includes(word));\n\nlet results = products.filter(product => {\n  const searchable = `${product.name} ${product.variant} ${product.category} ${product.url}`.toLowerCase();\n  \n  // If no specific keywords, return all to be sorted\n  if (keywords.length === 0) return true;\n  \n  // Match if ANY keyword is found in the product data (simulating a loose Shopify search)\n  return keywords.some(keyword => searchable.includes(keyword));\n});\n\n// =====================================\n// SORTING & TOKEN OPTIMIZATION\n// =====================================\n// Sort by stock level (low stock/out of stock goes to bottom unless specifically requested)\nresults.sort((a, b) => b.stock - a.stock);\n\n// CRITICAL: Limit to top 3 results to save LLM tokens and prevent agent context overflow\nconst topResults = results.slice(0, 3);\n\n// =====================================\n// RESPONSE FORMATTING\n// =====================================\nif (topResults.length === 0) {\n  return `[API RESPONSE: 404] No Bogg Bag products found matching \"${userQuery}\". Please ask the customer to clarify the bag size or color.`;\n}\n\nlet response = `[API RESPONSE: 200] Found ${topResults.length} matching products:\\n\\n`;\n\ntopResults.forEach((product) => {\n  const stockStatus = product.stock === 0 ? '❌ OUT OF STOCK' : product.stock <= 5 ? `⚠️ LOW STOCK (${product.stock} left)` : `✅ IN STOCK`;\n  \n  response += `Product: ${product.name} - ${product.variant}\nSKU/ID: ${product.id}\nPrice: $${product.price_usd}\nURL: ${product.url}\nStock Status: ${stockStatus}\n---\\n`;\n});\n\nreturn response;",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"query\": {\n      \"type\": \"string\",\n      \"description\": \"Product name, SKU, URL fragment, or description to check stock and pricing. Example: 'Baby bogg bag turquoise' or 'original pink'.\"\n    }\n  },\n  \"required\": [\"query\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        1648,
+        368
+      ],
+      "id": "a1a1bedd-2c5e-4647-a080-054ff562bfb6",
+      "name": "Bogg Inventory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Check Idempotency": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Processing": {
+      "main": [
+        [
+          {
+            "node": "Respond Success1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Metadata": {
+      "main": [
+        [
+          {
+            "node": "Write Redis Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Redis Metadata": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Check AI Response for Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check AI Response for Escalation": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Redis Escalated": {
+      "main": [
+        [
+          {
+            "node": "Respond Escalated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Redis Final": {
+      "main": [
+        [
+          {
+            "node": "Clear Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Update Only": {
+      "main": [
+        [
+          {
+            "node": "Respond Bot Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Prepare Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Vision API Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Human Handling",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redis Update Only",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Success1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision API Call": {
+      "main": [
+        [
+          {
+            "node": "Format Vision Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Vision Response": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Normalize.1.2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Normalize.1.2": {
+      "main": [
+        [
+          {
+            "node": "Check Idempotency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Update Redis Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Update Redis Escalated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bogg order lookup": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bogg Inventory": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "962f83a3-df5a-4f7f-b8fa-94bcb56d495b",
+  "meta": {
+    "instanceId": "de04d81ad0043604dd7cf94811cd7e4e699a941147bc5657c22888cbd20f604b"
+  },
+  "id": "Yx7mz8pwKo2VE0rH",
+  "tags": []
+}
