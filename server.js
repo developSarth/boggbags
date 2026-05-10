@@ -316,6 +316,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // ═════════════════════════════════════════════════════
+// ROOT → Redirect to demo page
+// ═════════════════════════════════════════════════════
+app.get('/', (req, res) => {
+  res.redirect('/demo/');
+});
+
+// ═════════════════════════════════════════════════════
 // REVERSE PROXY — Catches everything else and proxies
 // to boggbag.com (MUST be last)
 // ═════════════════════════════════════════════════════
