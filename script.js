@@ -279,7 +279,7 @@
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = input.value.trim();
-    if ((!text && !currentAttachment) || isBotTyping) return;
+    if (!text && !currentAttachment) return;
     
     input.value = '';
     
@@ -291,13 +291,12 @@
     currentAttachmentFile = null;
     fileInput.value = '';
     attachmentPreview.classList.remove('active');
-    sendBtn.disabled = true;
     
     handleUserMessage(text, attachmentToSend, fileToSend);
   });
 
   input.addEventListener('input', () => {
-    sendBtn.disabled = (input.value.trim().length === 0 && !currentAttachment);
+    // Keep send button always usable — never disable it
   });
 
   async function handleUserMessage(text, attachmentStr, attachmentFile) {
@@ -329,6 +328,13 @@
 
     // Show typing indicator
     showTyping();
+
+    // Safety timeout — clear typing if bot never responds (45s)
+    setTimeout(() => {
+      if (isBotTyping) {
+        removeTyping();
+      }
+    }, 45000);
 
     // Send to API → n8n
     try {
