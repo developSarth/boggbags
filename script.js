@@ -42,7 +42,11 @@
     launcher.classList.toggle('open', isOpen);
 
     if (isOpen) {
-      loadMessages();
+      // Clear previous history on server + reset frontend
+      fetch('/api/messages/clear', { method: 'POST' }).catch(() => {});
+      messagesEl.innerHTML = '';
+      lastPoll = 0;
+      showWelcome();
       startPolling();
       setTimeout(() => input.focus(), 400);
     } else {

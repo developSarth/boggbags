@@ -315,6 +315,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), messageCount: messages.length });
 });
 
+// Clear chat history (reset session)
+app.post('/api/messages/clear', (req, res) => {
+  messages = [];
+  conversationId = 'conv_' + Date.now();
+  console.log('🗑️  Chat history cleared, new session: ' + conversationId);
+  res.json({ success: true });
+});
+
 // ═════════════════════════════════════════════════════
 // ROOT → Redirect to demo page
 // ═════════════════════════════════════════════════════
