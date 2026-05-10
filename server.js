@@ -323,6 +323,30 @@ app.post('/api/messages/clear', (req, res) => {
   res.json({ success: true });
 });
 
+// ===== PRODUCT IMAGE PROXY (for chatbot product cards) =====
+const imageCache = {};
+app.get('/api/product-image', async (req, res) => {
+  const slug = req.query.slug;
+  if (!slug) return res.json({ image: null });
+
+  // Check cache first
+  if (imageCache[slug]) return res.json({ image: imageCache[slug] });
+
+  try {
+    const apiUrl = `https://boggbag.com/products/${slug}.json`;
+    const resp = await fetch(apiUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+    });
+    if (!resp.ok) return res.json({ image: null });
+    const data = await resp.json();
+    const imgSrc = data.product?.image?.src || data.product?.images?.[0]?.src || null;
+    if (imgSrc) imageCache[slug] = imgSrc;
+    res.json({ image: imgSrc });
+  } catch (e) {
+    res.json({ image: null });
+  }
+});
+
 // ═════════════════════════════════════════════════════
 // ROOT → Redirect to demo page
 // ═════════════════════════════════════════════════════

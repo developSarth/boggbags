@@ -147,22 +147,242 @@
     }
     
     if (text) {
-      const textSpan = document.createElement('div');
-      textSpan.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
-      msg.appendChild(textSpan);
+      // Check if bot response contains product data
+      const products = (role === 'bot') ? parseProductsFromText(text) : [];
+      const orders = (role === 'bot') ? parseOrdersFromText(text) : [];
+      
+      if (products.length > 0) {
+        // Show a clean text summary without the raw data
+        const cleanText = getCleanBotText(text);
+        if (cleanText) {
+          const textSpan = document.createElement('div');
+          textSpan.innerHTML = escapeHtml(cleanText).replace(/\n/g, '<br>');
+          msg.appendChild(textSpan);
+        }
+        messagesEl.appendChild(msg);
+        // Render product cards below the message
+        renderProductCards(products);
+      } else if (orders.length > 0) {
+        const cleanText = getCleanBotText(text);
+        if (cleanText) {
+          const textSpan = document.createElement('div');
+          textSpan.innerHTML = escapeHtml(cleanText).replace(/\n/g, '<br>');
+          msg.appendChild(textSpan);
+        }
+        messagesEl.appendChild(msg);
+        // Render order cards
+        renderOrderCards(orders);
+      } else {
+        const textSpan = document.createElement('div');
+        textSpan.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+        msg.appendChild(textSpan);
+        messagesEl.appendChild(msg);
+      }
+    } else {
+      messagesEl.appendChild(msg);
     }
 
     // Add decorative icons to bot messages
     if (role === 'bot') {
-      const isStarfish = Math.random() > 0.5;
-      const icon = document.createElement('div');
-      icon.classList.add(isStarfish ? 'chat-msg-icon' : 'chat-msg-icon-left');
-      icon.textContent = isStarfish ? '🌺' : '🐚';
-      msg.appendChild(icon);
+      const lastBotMsg = messagesEl.querySelector('.chat-msg.bot:last-of-type');
+      if (lastBotMsg && !lastBotMsg.querySelector('.chat-msg-icon, .chat-msg-icon-left')) {
+        const isStarfish = Math.random() > 0.5;
+        const icon = document.createElement('div');
+        icon.classList.add(isStarfish ? 'chat-msg-icon' : 'chat-msg-icon-left');
+        icon.textContent = isStarfish ? '🌺' : '🐚';
+        lastBotMsg.appendChild(icon);
+      }
     }
     
-    messagesEl.appendChild(msg);
     if (doScroll) scrollToBottom();
+  }
+
+  // ───── Parse product data from bot text ─────
+  function parseProductsFromText(text) {
+    const products = [];
+    // Match product blocks: "Product: Name - Variant\nSKU/ID: ...\nPrice: $XX\nURL: ...\nStock Status: ..."
+    const blocks = text.split('---').filter(b => b.trim());
+    blocks.forEach(block => {
+      const nameMatch = block.match(/Product:\s*(.+?)(?:\n|$)/);
+      const priceMatch = block.match(/Price:\s*\$?([\d.]+)/);
+      const urlMatch = block.match(/URL:\s*(https?:\/\/[^\s\n]+)/);
+      const stockMatch = block.match(/Stock(?:\s*Status)?:\s*(.+?)(?:\n|$)/);
+      const skuMatch = block.match(/SKU(?:\/ID)?:\s*(.+?)(?:\n|$)/);
+      
+      if (nameMatch && urlMatch) {
+        products.push({
+          name: nameMatch[1].trim(),
+          price: priceMatch ? priceMatch[1] : null,
+          url: urlMatch[1].trim(),
+          stock: stockMatch ? stockMatch[1].trim() : null,
+          sku: skuMatch ? skuMatch[1].trim() : null,
+          slug: urlMatch[1].trim().replace('https://boggbag.com/products/', '')
+        });
+      }
+    });
+    return products;
+  }
+
+  // ───── Parse order data from bot text ─────
+  function parseOrdersFromText(text) {
+    const orders = [];
+    const blocks = text.split('---').filter(b => b.trim());
+    blocks.forEach(block => {
+      const orderIdMatch = block.match(/Order\s*ID:\s*(.+?)(?:\n|$)/);
+      const customerMatch = block.match(/Customer:\s*(.+?)(?:\n|$)/);
+      const itemMatch = block.match(/Item:\s*(.+?)(?:\n|$)/);
+      const statusMatch = block.match(/Status:\s*(.+?)(?:\n|$)/);
+      const trackingMatch = block.match(/Tracking:\s*(.+?)(?:\n|$)/);
+      const linkMatch = block.match(/Link:\s*(https?:\/\/[^\s\n]+)/);
+      const amountMatch = block.match(/Amount:\s*\$?([\d.]+)/);
+      
+      if (orderIdMatch && statusMatch) {
+        orders.push({
+          orderId: orderIdMatch[1].trim(),
+          customer: customerMatch ? customerMatch[1].trim() : '',
+          item: itemMatch ? itemMatch[1].trim() : '',
+          status: statusMatch[1].trim(),
+          tracking: trackingMatch ? trackingMatch[1].trim() : '',
+          trackingLink: linkMatch ? linkMatch[1].trim() : '',
+          amount: amountMatch ? amountMatch[1] : null
+        });
+      }
+    });
+    return orders;
+  }
+
+  // ───── Clean bot text (remove raw data blocks) ─────
+  function getCleanBotText(text) {
+    // Remove the raw structured data, keep only the conversational part
+    // Remove lines that look like "Product: ...", "SKU: ...", etc.
+    const lines = text.split('\n');
+    const cleanLines = lines.filter(l => {
+      const t = l.trim();
+      if (!t) return false;
+      if (/^(Product|SKU|Price|URL|Stock|Tracking|Link|Order\s*ID|Customer|Email|Item|Qty|Date|Amount|---)/i.test(t)) return false;
+      if (/^\[API RESPONSE/i.test(t)) return false;
+      if (/^Found \d+ (product|order|matching)/i.test(t)) return true;
+      return true;
+    });
+    return cleanLines.join('\n').trim();
+  }
+
+  // ───── Render Product Cards ─────
+  function renderProductCards(products) {
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('product-cards-wrapper');
+
+    products.forEach((product, index) => {
+      const card = document.createElement('a');
+      card.href = product.url;
+      card.target = '_blank';
+      card.rel = 'noopener';
+      card.classList.add('chat-product-card-v2');
+      card.style.animationDelay = `${index * 0.12}s`;
+
+      // Stock badge
+      const isInStock = product.stock && (product.stock.includes('IN STOCK') || product.stock.includes('✅'));
+      const isLow = product.stock && product.stock.includes('LOW');
+      const isOut = product.stock && (product.stock.includes('OUT') || product.stock.includes('❌'));
+      const stockClass = isOut ? 'out' : isLow ? 'low' : 'in';
+      const stockLabel = isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock';
+
+      card.innerHTML = `
+        <div class="pcv2-img-wrap">
+          <div class="pcv2-img-placeholder">
+            <div class="pcv2-spinner"></div>
+          </div>
+          <div class="pcv2-badge ${stockClass}">${stockLabel}</div>
+        </div>
+        <div class="pcv2-body">
+          <div class="pcv2-name">${escapeHtml(product.name)}</div>
+          <div class="pcv2-meta">
+            ${product.price ? `<span class="pcv2-price">$${product.price}</span>` : ''}
+            ${product.sku ? `<span class="pcv2-sku">${escapeHtml(product.sku)}</span>` : ''}
+          </div>
+          <div class="pcv2-cta">View Product <span>→</span></div>
+        </div>
+      `;
+
+      wrapper.appendChild(card);
+
+      // Fetch real product image asynchronously
+      if (product.slug) {
+        fetchProductImage(product.slug, card);
+      }
+    });
+
+    messagesEl.appendChild(wrapper);
+    scrollToBottom();
+  }
+
+  // ───── Fetch product image from server proxy ─────
+  async function fetchProductImage(slug, cardEl) {
+    try {
+      const res = await fetch(`/api/product-image?slug=${encodeURIComponent(slug)}`);
+      const data = await res.json();
+      if (data.image) {
+        const imgWrap = cardEl.querySelector('.pcv2-img-wrap');
+        const placeholder = imgWrap.querySelector('.pcv2-img-placeholder');
+        const img = document.createElement('img');
+        img.src = data.image;
+        img.alt = 'Product';
+        img.classList.add('pcv2-img');
+        img.onload = () => {
+          if (placeholder) placeholder.remove();
+          imgWrap.prepend(img);
+        };
+        img.onerror = () => {
+          // Keep placeholder with a bag emoji
+          const ph = imgWrap.querySelector('.pcv2-img-placeholder');
+          if (ph) ph.innerHTML = '<span style="font-size:40px">👜</span>';
+        };
+      } else {
+        const ph = cardEl.querySelector('.pcv2-img-placeholder');
+        if (ph) ph.innerHTML = '<span style="font-size:40px">👜</span>';
+      }
+    } catch (e) {
+      const ph = cardEl.querySelector('.pcv2-img-placeholder');
+      if (ph) ph.innerHTML = '<span style="font-size:40px">👜</span>';
+    }
+  }
+
+  // ───── Render Order Cards ─────
+  function renderOrderCards(orders) {
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('order-cards-wrapper');
+
+    orders.forEach((order, index) => {
+      const card = document.createElement('div');
+      card.classList.add('chat-order-card');
+      card.style.animationDelay = `${index * 0.12}s`;
+
+      const statusClass = order.status.includes('Delivered') ? 'delivered' :
+                           order.status.includes('Shipped') || order.status.includes('Delivery') ? 'shipped' :
+                           'processing';
+
+      card.innerHTML = `
+        <div class="order-card-header">
+          <span class="order-id">${escapeHtml(order.orderId)}</span>
+          <span class="order-status ${statusClass}">${escapeHtml(order.status)}</span>
+        </div>
+        <div class="order-card-body">
+          ${order.item ? `<div class="order-item">📦 ${escapeHtml(order.item)}</div>` : ''}
+          ${order.customer ? `<div class="order-detail">👤 ${escapeHtml(order.customer)}</div>` : ''}
+          ${order.amount ? `<div class="order-detail">💰 $${order.amount}</div>` : ''}
+          ${order.tracking && order.tracking !== 'N/A' ? `
+            <a href="${order.trackingLink || '#'}" target="_blank" class="order-tracking-btn">
+              🚚 Track: ${escapeHtml(order.tracking)}
+            </a>
+          ` : ''}
+        </div>
+      `;
+
+      wrapper.appendChild(card);
+    });
+
+    messagesEl.appendChild(wrapper);
+    scrollToBottom();
   }
 
   function escapeHtml(str) {

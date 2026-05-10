@@ -708,3 +708,265 @@ button { font-family: var(--font-primary); }
     height: 54px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   CHATBOT — Product Cards v2 (Interactive)
+   ═══════════════════════════════════════════════════════════ */
+.product-cards-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: flex-start;
+  width: 100%;
+  max-width: 260px;
+  animation: msg-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.chat-product-card-v2 {
+  display: flex;
+  flex-direction: column;
+  background: var(--bogg-white);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--bogg-gray-200);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease;
+  animation: msg-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  cursor: pointer;
+}
+
+.chat-product-card-v2:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+
+.pcv2-img-wrap {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  background: linear-gradient(135deg, #fff0f3 0%, #fce4ec 100%);
+  overflow: hidden;
+}
+
+.pcv2-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: imgFadeIn 0.4s ease both;
+}
+
+@keyframes imgFadeIn {
+  from { opacity: 0; transform: scale(1.05); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.pcv2-img-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fff0f3 0%, #fce4ec 100%);
+}
+
+.pcv2-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--bogg-pink-light);
+  border-top: 3px solid var(--bogg-pink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.pcv2-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
+.pcv2-badge.in {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.pcv2-badge.low {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.pcv2-badge.out {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.pcv2-body {
+  padding: 12px 14px;
+}
+
+.pcv2-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--bogg-navy-deep);
+  line-height: 1.35;
+  margin-bottom: 6px;
+}
+
+.pcv2-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pcv2-price {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--bogg-pink);
+}
+
+.pcv2-sku {
+  font-size: 11px;
+  color: var(--bogg-gray-400);
+  font-weight: 500;
+}
+
+.pcv2-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bogg-pink);
+  transition: gap 0.2s ease;
+}
+
+.chat-product-card-v2:hover .pcv2-cta {
+  gap: 8px;
+}
+
+.pcv2-cta span {
+  transition: transform 0.2s ease;
+}
+
+.chat-product-card-v2:hover .pcv2-cta span {
+  transform: translateX(3px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CHATBOT — Order Cards
+   ═══════════════════════════════════════════════════════════ */
+.order-cards-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: flex-start;
+  width: 100%;
+  max-width: 280px;
+  animation: msg-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.chat-order-card {
+  background: var(--bogg-white);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--bogg-gray-200);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+  animation: msg-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.order-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #faf8f5 0%, #fff0f3 100%);
+  border-bottom: 1px solid var(--bogg-gray-100);
+}
+
+.order-id {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--bogg-navy-deep);
+  letter-spacing: 0.5px;
+}
+
+.order-status {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.order-status.delivered {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.order-status.shipped {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.order-status.processing {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.order-card-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.order-item {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--bogg-navy-deep);
+}
+
+.order-detail {
+  font-size: 12px;
+  color: var(--bogg-gray-600);
+}
+
+.order-tracking-btn {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, var(--bogg-pink-light) 0%, #ff8fab 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+  width: fit-content;
+}
+
+.order-tracking-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 143, 171, 0.3);
+}
+
